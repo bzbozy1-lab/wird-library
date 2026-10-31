@@ -1,53 +1,19 @@
-"use strict";
-// أضف الكتب المعتمدة للنشر هنا. يجب وضع ملفات PDF في مجلد books.
-// لا تنشر كتابًا لم تتأكد من الإذن القانوني لإعادة نشره.
-const books = [];
-const grid = document.getElementById("bookGrid");
-const count = document.getElementById("bookCount");
-const search = document.getElementById("searchInput");
-const filters = [...document.querySelectorAll("[data-filter]")];
-const empty = document.getElementById("emptyState");
-const dialog = document.getElementById("readerDialog");
-const frame = document.getElementById("readerFrame");
-let category = "all";
-function safeText(text){return String(text ?? "");}
-function card(book){
-  const article=document.createElement("article"); article.className="book-card";
-  const cover=document.createElement("div");cover.className="book-cover";cover.setAttribute("aria-hidden","true");cover.textContent="۞";
-  if(book.cover){const img=document.createElement("img");img.src=book.cover;img.alt="";img.loading="lazy";cover.append(img);}
-  const info=document.createElement("div");info.className="book-info";
-  const type=document.createElement("span");type.className="book-type";type.textContent=book.category==="personal"?"كتابات شخصية":"كتب قديمة";
-  const title=document.createElement("h3");title.textContent=safeText(book.title);
-  const author=document.createElement("p");author.className="book-author";author.textContent=safeText(book.author);
-  const description=document.createElement("p");description.className="book-description";description.textContent=safeText(book.description);
-  const actions=document.createElement("div");actions.className="book-actions";
-  const read=document.createElement("button");read.type="button";read.textContent="اقرأ الآن";read.addEventListener("click",()=>openReader(book));
-  const download=document.createElement("a");download.textContent="تحميل ↓";download.href=book.file;download.download="";download.setAttribute("aria-label","تحميل "+book.title);
-  actions.append(read,download);info.append(type,title,author,description,actions);article.append(cover,info);return article;
-}
-function render(){
- const q=search.value.trim().toLocaleLowerCase("ar");
- const result=books.filter(b=>(category==="all"||b.category===category)&&[b.title,b.author,b.description].join(" ").toLocaleLowerCase("ar").includes(q));
- grid.replaceChildren(...result.map(card));count.textContent=books.length+" كتاب";empty.hidden=result.length>0;
- empty.textContent=books.length===0?"المكتبة قيد التجهيز. ستظهر الكتب هنا فور اعتمادها للنشر.":"لا توجد كتب تطابق البحث حاليًا.";
-}
-function openReader(book){
- document.getElementById("readerTitle").textContent=book.title;
- const url=new URL(book.file,location.href);
- if(url.origin!==location.origin){return;}
- frame.src=url.href+"#toolbar=1&navpanes=0";
- document.getElementById("readerDownload").href=url.href;
- document.getElementById("readerOpen").href=url.href;
- dialog.showModal();
-}
-document.getElementById("readerClose").addEventListener("click",()=>dialog.close());
-dialog.addEventListener("close",()=>{frame.removeAttribute("src");});
-dialog.addEventListener("click",e=>{if(e.target===dialog)dialog.close();});
-search.addEventListener("input",render);
-filters.forEach(btn=>btn.addEventListener("click",()=>{category=btn.dataset.filter;filters.forEach(b=>{b.classList.toggle("active",b===btn);b.setAttribute("aria-pressed",String(b===btn));});render();}));
-const themeToggle=document.getElementById("themeToggle");
-const savedTheme=localStorage.getItem("wird-theme");
-if(savedTheme==="dark")document.documentElement.classList.add("dark");
-function syncTheme(){const dark=document.documentElement.classList.contains("dark");themeToggle.textContent=dark?"☀":"☾";themeToggle.setAttribute("aria-label",dark?"تفعيل المظهر الفاتح":"تفعيل المظهر الداكن");}
-themeToggle.addEventListener("click",()=>{document.documentElement.classList.toggle("dark");localStorage.setItem("wird-theme",document.documentElement.classList.contains("dark")?"dark":"light");syncTheme();});
-document.getElementById("year").textContent=new Date().getFullYear();syncTheme();render();
+'use strict';
+const storage={get(k){try{return localStorage.getItem(k)}catch{return null}},set(k,v){try{localStorage.setItem(k,v)}catch{}}};
+const moon='<path d="M20.8 13A9 9 0 0 1 11 3.2 9 9 0 1 0 20.8 13Z"/>';
+const sun='<circle cx="12" cy="12" r="4"/><path d="M12 1v2m0 18v2M1 12h2m18 0h2M4 4l2 2m12 12 2 2M4 20l2-2M18 6l2-2"/>';
+function syncTheme(){const dark=document.documentElement.dataset.theme==='dark';document.querySelectorAll('.theme-toggle').forEach(b=>{b.setAttribute('aria-label',dark?'تفعيل المظهر الفاتح':'تفعيل المظهر الداكن');b.querySelector('svg').innerHTML=dark?sun:moon});document.querySelector('meta[name="theme-color"]')?.setAttribute('content',dark?'#211d24':'#f8f5f9')}
+document.querySelectorAll('.theme-toggle').forEach(b=>b.addEventListener('click',()=>{const next=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=next;storage.set('wird-theme',next);syncTheme()}));syncTheme();
+const normalize=s=>s.normalize('NFKD').replace(/[\u064B-\u065F\u0670\u0640]/g,'').replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').toLocaleLowerCase('ar').trim();
+const search=document.querySelector('#search');
+const progress=document.querySelector('#reading-progress');
+// Build the catalog with DOM nodes; catalog strings never become executable markup.
+const catalog=window.WIRD_BOOKS||[];
+const params=new URLSearchParams(location.search);
+const requested=params.get('id');
+const currentBook=catalog.find(b=>b.id===requested)||(!requested?catalog[0]:null);
+const bookURL=(page,b)=>`${page}.html?id=${encodeURIComponent(b.id)}`;
+function populateCard(article,b){article.dataset.category=b.category;article.dataset.search=normalize([b.title,b.author,b.description,b.subject].join(' '));const image=article.querySelector('img');image.src=b.cover;image.alt='الغلاف الأصلي لكتاب '+b.title;image.loading='lazy';article.querySelectorAll('a[href="book.html"]').forEach(a=>a.href=bookURL('book',b));article.querySelector('h2 a').textContent=b.title;article.querySelector('.author').textContent=b.author;article.querySelector('.entry-copy>p:not(.author)').textContent=b.description;article.querySelector('.category-label').textContent=(b.category==='personal'?'كتابات شخصية':'كتب قديمة')+' · '+b.subject;const metadata=article.querySelector('.metadata');metadata.replaceChildren(document.createTextNode(b.pages+' صفحة '));for(const value of [b.language,'PDF · '+b.size]){const span=document.createElement('span');span.textContent=value;metadata.append(span)}const read=article.querySelector('.actions a:first-child');read.href=bookURL('reader',b);const download=article.querySelector('[download]');download.href=b.file;download.download=b.title+'.pdf'}
+const results=document.querySelector('#book-results');
+if(results&&catalog.length){const template=results.querySelector('article');results.replaceChildren(...catalog.map(b=>{const node=template.cloneNode(true);populateCard(node,b);return node}));const category=document.querySelector('#category');function catalogFilter(){const q=normalize(search.value);let count=0;results.querySelectorAll('article').forEach(a=>{const show=(category.value==='all'||category.value===a.dataset.category)&&a.dataset.search.includes(q);a.hidden=!show;if(show)count++});results.hidden=count===0;document.querySelector('#empty').hidden=count>0;document.querySelector('#result-count').textContent=count===1?'كتاب واحد متاح للقراءة':count?`${count} كتب متاحة للقراءة`:'لا توجد نتائج'}search.addEventListener('input',catalogFilter);category.addEventListener('change',catalogFilter);document.querySelector('#reset-search').addEventListener('click',()=>{search.value='';category.value='all';catalogFilter();search.focus()});catalogFilter()}
+if(document.body.classList.contains('page-book')){if(!currentBook){document.querySelector('.detail-layout').textContent='لم نجد هذا الكتاب. عُد إلى المكتبة لاختيار كتاب متاح.'}else{const b=currentBook;document.title=b.title+' | وِرد';document.querySelector('.detail-copy h1').textContent=b.title;document.querySelector('.detail-copy .author strong').textContent=b.author;document.querySelector('.description').textContent=b.description;document.querySelector('.category-label').textContent=(b.category==='personal'?'كتابات شخصية':'كتب قديمة')+' · '+b.subject;const image=document.querySelector('.detail-cover img');image.src=b.cover;image.alt='الغلاف الأصلي لكتاب '+b.title;const values=[b.pages+' صفحة',b.language,'PDF · '+b.size];document.querySelectorAll('.book-facts dd').forEach((el,i)=>el.textContent=values[i]);document.querySelector('.actions .primary').href=bookURL('reader',b);const dl=document.querySelector('[download]');dl.href=b.file;dl.download=b.title+'.pdf';document.querySelector('.book-note p').textContent=b.permission+' نعرض صفحاته وغلافه كما وردت في الملف الأصلي، دون تغيير في النصوص.';const saved=Number(storage.get('wird-progress-'+b.id));progress.textContent=saved>1&&saved<=b.pages?`وصلت سابقًا إلى الصفحة ${saved}. سيستأنف القارئ من موضعك.`:''}}
