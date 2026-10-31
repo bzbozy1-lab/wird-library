@@ -11,5 +11,6 @@ window.WIRD_BOOKS = [{
   size:'7.3 MB',
   file:'books/rawdat-al-uns.pdf',
   cover:'covers/rawdat-al-uns.webp',
+  pageImages:{base:'books/rawdat-al-uns/pages/',extension:'webp',width:1715,height:2400},
   permission:'الكتاب متاح للقراءة والتحميل مجانًا بإذن صاحبته.'
 }];

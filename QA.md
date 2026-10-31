@@ -1,24 +1,23 @@
-# Verification — 2026-10-31
+# Verification — 2026-10-31, gradient/reader update
 
-## Verified
-- Browser inspection of original site and replacement: desktop 1353px, mobile iframe viewport 390×844, tablet iframe viewport 768×1024. These are responsive browser viewports, not physical iOS/Android devices.
-- Original cover proportions retained. Original PDF SHA-256 matches uploaded source, 7,277,683 bytes, 27 pages. GitHub binary blob SHA verified against locally computed git blob hash during upload.
-- PDF.js rendering of cover, interior pages 2–5, and final page 27. Original Arabic glyph issue resolved with outline font rendering (`disableFontFace`).
-- Single mobile page, desktop double spread, page number jump, final-page next disabled, zoom 100%→125%→100%, display selector, motion checkbox, dark/light toggle, progress surviving return to details/reopen.
-- Search author match and no-match, heritage empty state, reset returning one book.
-- Local HTML navigation/assets exist, JavaScript syntax checks and git diff whitespace checks passed.
-- Primary muted/accent text contrast against page backgrounds: light 5.47/5.35, dark 8.40/8.01.
-- Independent visual review: ship after removing unreliable extracted text and supplying reader screenshots. This verdict resolves that fix list; it is not a comprehensive screen-reader audit.
+## Current implementation
+- Original PDF retained byte-for-byte: SHA-256 `9aec4a8dab713419e059466ec8ccb6229ea73fb14d53ed133b655c1da232b582`.
+- All27 prepared WebP pages validated: nonempty WebP signatures, Pillow decoding,1715×2400 proportions. Page22 had an incomplete intermediate render; rebuilt before validation/upload.
+- Reader no longer needs a browser-side PDF module, Worker, or full PDF download. Only requested page images and neighboring pages are requested; cache limited to8.
+- Source of the user's device-specific loading failure was not reproduced in cloud Chrome. The earlier implementation waited on PDF.js/full-PDF setup without a deadline. New path removes those dependencies and adds12s timeout, explicit retry and original-file fallback.
+
+## Automated checks
+`node tests/validate.cjs`, `node tests/reader.test.cjs`, JavaScript syntax and `git diff --check` pass.
+Reader tests run the actual script against a controlled DOM/Image environment: initial success, network image failure, retry success, timeout, unknown book, stale response protection, focus-mode fallback.
+
+## Browser checks
+- New reader opens prepared pages; interior spreads4/5,6/7,8/9,10/11 and final27 observed. Single page at320px and spread on desktop.
+- Previous/next, numeric jump, page27 next disabled, return-position behavior and options controls checked.
+- Leaf animation event diagnostics observed `turning`, then `completedTurns:1,lastTurn:forward,state:idle`; animation runs and completes. Optional motion and system reduced motion supported. Motion is the binding-based two-face leaf model used by CARTO, with perspective/shading; no claim of physical cloth/paper simulation.
+- Fullscreen denied by cloud browser now enters usable focus mode; exit returns header. Native fullscreen success remains unverified.
+-320px reader has body scrollWidth320 equal viewport320. Responsive captures include390px home and768px library.
+- Both gradient themes inspected, decoded original covers preserved, opaque reading tools. Final captures made after image loading; discarded incomplete captures were not review evidence.
+- Independent reviewer: ship at scoped gradient/reader polish. Documentation verification found no scoped stale facts.
 
 ## Limits
-- Fullscreen control gracefully reports browser refusal in the cloud browser; actual fullscreen could not be verified there.
-- Download event completion was not surfaced by the cloud browser. PDF rendering confirms successful file loading in preview; published file subsequently verified by direct HTTP download: 200 application/pdf, 7,277,683 bytes; SHA-256 matches source. Browser download-event completion remains unverified.
-- Canvas pages are not a verified screen-reader transcript. The original PDF text extraction is malformed. This is disclosed in reader options and an assistive description. Original file preserved unchanged.
-- Turn animation is a shallow optional page rotation, not physical paper curl. Default PDF appearance is retained in both themes.
-- No performance benchmark or claim of exhaustive device/browser coverage. PDF loads on reader entry only; current pages render on demand.
-
-## Published verification
-- GitHub Pages deployment for commit 6d60c39f42ba2b5ca33e68d4b13e1eade8f66cca completed successfully.
-- Public homepage and reader opened in browser; PDF rendered successfully from permanent URL.
-- Downloaded public PDF SHA-256: 9aec4a8dab713419e059466ec8ccb6229ea73fb14d53ed133b655c1da232b582, identical to uploaded original.
-- Keyboard ArrowLeft in reader moved spread from pages4/5 to6/7.
+Not a physical-device or exhaustive browser audit. No measured speed benchmark; reduced initial dependency/payload is established by implementation. Original PDF is not a reliable screen-reader transcript; limitation disclosed in reader. Prepared page images retain visual text without rewriting, while the downloadable source remains original. Original PDF public HTTP download/checksum verified in prior release; live recheck follows deployment of this update.

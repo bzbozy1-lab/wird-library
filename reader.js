@@ -1,28 +1,211 @@
-import * as pdfjs from './assets/vendor/pdf.min.mjs';
-pdfjs.GlobalWorkerOptions.workerSrc=new URL('./assets/vendor/pdf.worker.min.mjs',import.meta.url).href;
-const book=(window.WIRD_BOOKS||[]).find(b=>b.id===new URLSearchParams(location.search).get('id'))||(!new URLSearchParams(location.search).has('id')?window.WIRD_BOOKS?.[0]:null);
-if(!book){document.querySelector('#reader-status').textContent='لم نجد هذا الكتاب. عُد إلى المكتبة.';throw new Error('Unknown book')}
-const total=book.pages;const progressKey='wird-progress-'+book.id;
-const $=s=>document.querySelector(s);const get=k=>{try{return localStorage.getItem(k)}catch{return null}};const set=(k,v)=>{try{localStorage.setItem(k,String(v))}catch{}};
-let pdf,page=Math.max(1,Math.min(total,Number(get(progressKey))||1)),zoom=1,sequence=0,busy=false;
-let mode=get('wird-spread')||'auto';let motion=get('wird-motion')!=='off'&&!matchMedia('(prefers-reduced-motion: reduce)').matches;const reduce=matchMedia('(prefers-reduced-motion: reduce)');
-const spread=$('#spread'),scroll=$('#page-scroll'),status=$('#reader-status');let jobs=[];
-document.title='قراءة '+book.title+' | وِرد';$('#reader-app h1').textContent=book.title;$('.reader-header p').textContent=book.author;$('.reader-back').href='book.html?id='+encodeURIComponent(book.id);$('#page-number').max=total;document.querySelectorAll('[href="books/rawdat-al-uns.pdf"]').forEach(a=>{a.href=book.file;if(a.hasAttribute('download'))a.download=book.title+'.pdf'});$('.paper img').src=book.cover;$('#spread-mode').value=mode;$('#motion').checked=motion;
-function double(){return innerWidth>=900&&mode!=='single'&&(mode==='double'||innerWidth>=1100)}
-function pages(){return double()&&page>1&&page<total?[page,page+1]:[page]}
-function sync(){const list=pages();$('#page-number').value=page;$('#prev').disabled=page===1;$('#next').disabled=list.at(-1)>=total;$('#page-total').textContent=list.length===2?`– ${page+1} من ${total}`:`من ${total}`;$('#zoom-reset').textContent=Math.round(zoom*100)+'%';$('#zoom-out').disabled=zoom<=.75;$('#zoom-in').disabled=zoom>=2.5}
-function sizePaper(el){const list=pages();const width=Math.min((scroll.clientWidth-((innerWidth<=620)?24:56)-(list.length-1)*2)/list.length,(scroll.clientHeight-30)/1.4)*zoom;el.style.width=Math.max(100,width)+'px';el.style.height=Math.max(140,width*1.4)+'px'}
-async function render(animate=false){if(!pdf)return;const ticket=++sequence;busy=true;jobs.forEach(j=>j.cancel());jobs=[];const list=pages();sync();status.textContent='جارٍ تحميل الصفحة…';const elements=list.map(n=>{const el=document.createElement('div');el.className='paper';el.setAttribute('role','group');el.setAttribute('aria-label',`الصفحة ${n} من ${total}، من كتاب ${book.title}`);sizePaper(el);return el});spread.replaceChildren(...elements);scroll.scrollTo(0,0);
-try{await Promise.all(list.map(async(n,i)=>{const pdfPage=await pdf.getPage(n);if(ticket!==sequence)return;const el=elements[i];const base=pdfPage.getViewport({scale:1});const density=Math.min(devicePixelRatio||1,2);const viewport=pdfPage.getViewport({scale:el.clientWidth*density/base.width});const canvas=document.createElement('canvas');canvas.width=viewport.width;canvas.height=viewport.height;canvas.setAttribute('aria-hidden','true');el.append(canvas);const task=pdfPage.render({canvasContext:canvas.getContext('2d'),viewport});jobs.push(task);await task.promise;}));if(ticket!==sequence)return;busy=false;status.textContent=list.length===2?`الصفحتان ${page} و${page+1} · يُحفظ موضعك تلقائيًا`:`الصفحة ${page} من ${total} · يُحفظ موضعك تلقائيًا`;set(progressKey,page);$('#reader-error').hidden=true;if(animate&&motion&&!reduce.matches)elements.forEach(el=>el.animate([{transform:'rotateY(-14deg)',filter:'brightness(.9)'},{transform:'rotateY(0)',filter:'brightness(1)'}],{duration:360,easing:'cubic-bezier(.16,1,.3,1)'}));const neighbor=list.at(-1)+1;if(neighbor<=total)pdf.getPage(neighbor).catch(()=>{});
-}catch(e){if(e.name==='RenderingCancelledException'||ticket!==sequence)return;busy=false;status.textContent='تعذّر عرض الصفحة';$('#reader-error').hidden=false;console.error('Reader render:',e)}}
-function go(n){if(!pdf)return;n=Math.max(1,Math.min(pdf.numPages,Math.floor(Number(n)||1)));page=n;render(true)}
-$('#next').onclick=()=>go(page+pages().length);$('#prev').onclick=()=>go(page-(double()&&page>2?2:1));$('#page-form').onsubmit=e=>{e.preventDefault();if($('#page-number').checkValidity())go($('#page-number').value)};
-$('#zoom-in').onclick=()=>{zoom=Math.min(2.5,+(zoom+.25).toFixed(2));render()};$('#zoom-out').onclick=()=>{zoom=Math.max(.75,+(zoom-.25).toFixed(2));render()};$('#zoom-reset').onclick=()=>{zoom=1;render()};
-$('#reader-options').onclick=()=>{const panel=$('#options-panel');panel.hidden=!panel.hidden;$('#reader-options').setAttribute('aria-expanded',String(!panel.hidden))};
-$('#spread-mode').onchange=e=>{mode=e.target.value;set('wird-spread',mode);render()};$('#motion').onchange=e=>{motion=e.target.checked;set('wird-motion',motion?'on':'off')};
-$('#fullscreen').onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await $('#reader-app').requestFullscreen()}catch{status.textContent='ملء الشاشة غير متاح في هذا المتصفح؛ يمكنك متابعة القراءة هنا.'}};if(!document.fullscreenEnabled)$('#fullscreen').hidden=true;
-document.addEventListener('fullscreenchange',()=>{$('#fullscreen').setAttribute('aria-label',document.fullscreenElement?'إنهاء ملء الشاشة':'ملء الشاشة');render()});
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){$('#options-panel').hidden=true;$('#reader-options').setAttribute('aria-expanded','false')}if(/INPUT|SELECT|TEXTAREA|BUTTON|A/.test(e.target.tagName)||e.altKey||e.ctrlKey||e.metaKey)return;if(e.key==='ArrowLeft'){e.preventDefault();go(page+pages().length)}if(e.key==='ArrowRight'){e.preventDefault();go(page-(double()&&page>2?2:1))}});
-let touch;scroll.addEventListener('touchstart',e=>{if(e.touches.length===1&&zoom===1)touch={x:e.touches[0].clientX,y:e.touches[0].clientY};else touch=null},{passive:true});scroll.addEventListener('touchend',e=>{if(!touch||zoom!==1)return;const dx=e.changedTouches[0].clientX-touch.x,dy=e.changedTouches[0].clientY-touch.y;touch=null;if(Math.abs(dx)>65&&Math.abs(dy)<55)go(dx>0?page+pages().length:page-1)},{passive:true});
-let resize;addEventListener('resize',()=>{clearTimeout(resize);resize=setTimeout(()=>render(),180)});
-async function load(){status.textContent='جارٍ تجهيز الكتاب…';$('#reader-error').hidden=true;try{pdf=await pdfjs.getDocument({url:new URL(book.file,import.meta.url).href,isEvalSupported:false,disableFontFace:true}).promise;await render()}catch(e){status.textContent='تعذّر تحميل الكتاب';$('#reader-error').hidden=false;console.error('Reader load:',e)}}$('#retry').onclick=()=>pdf?render():load();sync();sizePaper(spread.querySelector('.paper'));load();
+/* Prepared original PDF pages: no module/worker or full-PDF download on reader entry. */
+(function () {
+  'use strict';
+  window.wirdReaderStarted = true;
+  var $ = function (s) { return document.querySelector(s); };
+  var storage = {
+    get: function (key) { try { return localStorage.getItem(key); } catch (_) { return null; } },
+    set: function (key, value) { try { localStorage.setItem(key, String(value)); } catch (_) {} }
+  };
+  var requested = new URLSearchParams(location.search).get('id');
+  var books = window.WIRD_BOOKS || [];
+  var book = books.find(function (b) { return b.id === requested; }) || (!requested ? books[0] : null);
+  var status = $('#reader-status'), error = $('#reader-error'), stage = $('#page-scroll'), spread = $('#spread');
+  var errorText = $('#reader-error-text');
+  function say(text) { status.textContent = text; }
+  if (!book || !book.pageImages) {
+    say('هذا الكتاب غير متاح في القارئ حاليًا');
+    error.hidden = false;
+    errorText.textContent = 'عُد إلى المكتبة لاختيار كتاب، أو افتح ملف PDF الأصلي.';
+    $('#prev').disabled = true; $('#next').disabled = true;
+    return;
+  }
+  var total = book.pages, key = 'wird-progress-' + book.id;
+  function clamp(n) { return Math.max(1, Math.min(total, Math.floor(Number(n) || 1))); }
+  var current = clamp(storage.get(key)), wanted = current, zoom = 1, generation = 0;
+  var mode = storage.get('wird-spread') || 'auto';
+  if (['auto', 'single', 'double'].indexOf(mode) < 0) mode = 'auto';
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+  var motion = storage.get('wird-motion') !== 'off';
+  var cache = new Map(), activeLeaf = null, leafTimer, resizeTimer, focusMode = false;
+  document.title = 'قراءة ' + book.title + ' | وِرد';
+  $('#reader-app h1').textContent = book.title;
+  $('.reader-header p').textContent = book.author;
+  $('.reader-back').href = 'book.html?id=' + encodeURIComponent(book.id);
+  $('#page-number').max = total;
+  document.querySelectorAll('[data-book-file]').forEach(function (a) {
+    a.href = book.file;
+    if (a.hasAttribute('download')) a.download = book.title + '.pdf';
+  });
+  $('.paper img').src = book.cover;
+  $('#spread-mode').value = mode;
+  $('#motion').checked = motion && !reduced.matches;
+  function doubleMode() {
+    return window.innerWidth >= 900 && mode !== 'single' && (mode === 'double' || window.innerWidth >= 1100);
+  }
+  function visiblePages(n) { return doubleMode() && n > 1 && n < total ? [n, n + 1] : [n]; }
+  function sync() {
+    var pages = visiblePages(current);
+    $('#page-number').value = current;
+    $('#prev').disabled = current <= 1;
+    $('#next').disabled = pages[pages.length - 1] >= total;
+    $('#page-total').textContent = pages.length === 2 ? '– ' + (current + 1) + ' من ' + total : 'من ' + total;
+    $('#zoom-reset').textContent = Math.round(zoom * 100) + '%';
+    $('#zoom-out').disabled = zoom <= .75;
+    $('#zoom-in').disabled = zoom >= 2.5;
+  }
+  function pageURL(n) {
+    return book.pageImages.base + String(n).padStart(2, '0') + '.' + (book.pageImages.extension || 'webp');
+  }
+  function loadPage(n, retry) {
+    if (retry) cache.delete(n);
+    if (cache.has(n)) return cache.get(n);
+    var promise = new Promise(function (resolve, reject) {
+      var image = new Image(), finished = false;
+      var timer = setTimeout(function () { finish(new Error('page-timeout')); }, 12000);
+      function finish(err) {
+        if (finished) return;
+        finished = true; clearTimeout(timer); image.onload = null; image.onerror = null;
+        if (err) { cache.delete(n); reject(err); } else resolve(image);
+      }
+      image.decoding = 'sync';
+      image.onload = function () {
+        if (!image.naturalWidth) { finish(new Error('empty-page')); return; }
+        if (image.decode) image.decode().then(function () { finish(); }, function () { finish(); });
+        else finish();
+      };
+      image.onerror = function () { finish(new Error('page-unavailable')); };
+      image.src = pageURL(n) + (retry ? '?retry=' + Date.now() : '');
+    });
+    cache.set(n, promise);
+    // Keep a bounded working set; browser HTTP caching handles older pages.
+    if (cache.size > 8) cache.delete(cache.keys().next().value);
+    return promise;
+  }
+  function paperSize(count) {
+    var ratio = book.pageImages.width / book.pageImages.height;
+    var horizontalPadding = window.innerWidth <= 620 ? 24 : 56;
+    var width = Math.min((stage.clientWidth - horizontalPadding - (count - 1) * 2) / count, (stage.clientHeight - 22) * ratio);
+    return { width: Math.max(100, width * zoom), height: Math.max(100, width * zoom) / ratio };
+  }
+  function stopTurn() {
+    clearTimeout(leafTimer);
+    if (activeLeaf) { activeLeaf.remove(); activeLeaf = null; }
+    spread.dataset.turnState = 'idle';
+  }
+  function turnLeaf(oldPaper, oldBox, nextPapers, direction) {
+    if (!oldPaper || !motion || reduced.matches || zoom !== 1) return;
+    var box = spread.getBoundingClientRect();
+    var leaf = document.createElement('div');
+    leaf.className = 'turn-leaf ' + (direction > 0 ? 'forward' : 'backward');
+    leaf.setAttribute('aria-hidden', 'true');
+    leaf.style.width = oldBox.width + 'px'; leaf.style.height = oldBox.height + 'px';
+    leaf.style.left = (oldBox.left - box.left) + 'px'; leaf.style.top = (oldBox.top - box.top) + 'px';
+    var front = document.createElement('div'), back = document.createElement('div');
+    front.className = 'leaf-front'; back.className = 'leaf-back';
+    var oldImage = oldPaper.querySelector('img');
+    if (oldImage) front.appendChild(oldImage.cloneNode(true));
+    var backPaper = direction > 0 ? nextPapers[0] : nextPapers[nextPapers.length - 1];
+    back.appendChild(backPaper.querySelector('img').cloneNode(true));
+    leaf.appendChild(front); leaf.appendChild(back); spread.appendChild(leaf); activeLeaf = leaf;
+    leaf.addEventListener('animationstart', function (event) { if (event.target === leaf) spread.dataset.turnState = 'turning'; });
+    leaf.addEventListener('animationend', function (event) {
+      if (event.target !== leaf) return;
+      spread.dataset.turnState = 'idle';
+      spread.dataset.lastTurn = direction > 0 ? 'forward' : 'backward';
+      spread.dataset.completedTurns = String(Number(spread.dataset.completedTurns || 0) + 1);
+      stopTurn();
+    });
+    leafTimer = setTimeout(stopTurn, 800);
+  }
+  async function render(number, animate, retry) {
+    var next = clamp(number), ticket = ++generation, list = visiblePages(next);
+    stage.setAttribute('aria-busy', 'true'); error.hidden = true;
+    say('جارٍ تحميل الصفحة ' + next + '…');
+    try {
+      var images = await Promise.all(list.map(function (n) { return loadPage(n, retry); }));
+      if (ticket !== generation) return;
+      var oldPapers = spread.querySelectorAll('.paper');
+      var direction = next - current;
+      var oldPaper = oldPapers.length ? oldPapers[direction > 0 ? oldPapers.length - 1 : 0] : null;
+      var oldBox = oldPaper ? oldPaper.getBoundingClientRect() : null;
+      if (oldPaper) oldPaper = oldPaper.cloneNode(true);
+      var dimensions = paperSize(list.length);
+      var nodes = images.map(function (source, i) {
+        var paper = document.createElement('div'), image = source;
+        paper.className = 'paper'; paper.style.width = dimensions.width + 'px'; paper.style.height = dimensions.height + 'px';
+        image.alt = 'الصفحة ' + list[i] + ' من ' + total + '، ' + book.title;
+        image.width = book.pageImages.width; image.height = book.pageImages.height;
+        image.draggable = false; paper.appendChild(image); return paper;
+      });
+      stopTurn(); spread.replaceChildren.apply(spread, nodes);
+      stage.scrollTop = 0; stage.scrollLeft = 0;
+      if (animate && direction && oldPaper && oldPapers.length === nodes.length) turnLeaf(oldPaper, oldBox, nodes, direction);
+      current = next; wanted = next; sync(); storage.set(key, current);
+      stage.setAttribute('aria-busy', 'false');
+      say(list.length === 2 ? 'الصفحتان ' + current + ' و' + (current + 1) + ' · يُحفظ موضعك تلقائيًا' : 'الصفحة ' + current + ' من ' + total + ' · يُحفظ موضعك تلقائيًا');
+      [list[list.length - 1] + 1, current - 1].forEach(function (n) { if (n >= 1 && n <= total) loadPage(n).catch(function () {}); });
+    } catch (err) {
+      if (ticket !== generation) return;
+      stage.setAttribute('aria-busy', 'false');
+      say('تعذّر تحميل الصفحة ' + next);
+      errorText.textContent = 'لم تصل صفحة الكتاب من الشبكة. أعد المحاولة، أو افتح ملف PDF الأصلي.';
+      error.hidden = false;
+    }
+  }
+  function go(number) { wanted = clamp(number); render(wanted, true, false); }
+  function nextPage() { go(wanted + visiblePages(wanted).length); }
+  function previousPage() { go(wanted - (doubleMode() && wanted > 2 ? 2 : 1)); }
+  $('#next').onclick = nextPage; $('#prev').onclick = previousPage;
+  $('#page-form').onsubmit = function (event) { event.preventDefault(); if ($('#page-number').checkValidity()) go($('#page-number').value); };
+  $('#retry').onclick = function () { render(wanted, false, true); };
+  $('#zoom-in').onclick = function () { zoom = Math.min(2.5, +(zoom + .25).toFixed(2)); render(current, false, false); };
+  $('#zoom-out').onclick = function () { zoom = Math.max(.75, +(zoom - .25).toFixed(2)); render(current, false, false); };
+  $('#zoom-reset').onclick = function () { zoom = 1; render(current, false, false); };
+  function closeOptions() { $('#options-panel').hidden = true; $('#reader-options').setAttribute('aria-expanded', 'false'); }
+  $('#reader-options').onclick = function () {
+    var hidden = !$('#options-panel').hidden;
+    $('#options-panel').hidden = hidden; $('#reader-options').setAttribute('aria-expanded', String(!hidden));
+  };
+  $('#close-options').onclick = function () { closeOptions(); $('#reader-options').focus(); };
+  document.addEventListener('click', function (event) {
+    if (!$('#options-panel').hidden && !$('#options-panel').contains(event.target) && !$('#reader-options').contains(event.target)) closeOptions();
+  });
+  $('#spread-mode').onchange = function (event) { mode = event.target.value; storage.set('wird-spread', mode); render(current, false, false); };
+  $('#motion').onchange = function (event) { motion = event.target.checked; storage.set('wird-motion', motion ? 'on' : 'off'); if (!motion) stopTurn(); };
+  function focusLayout() {
+    $('#reader-app').classList.toggle('focus-reading', focusMode);
+    $('#fullscreen').setAttribute('aria-label', focusMode ? 'إنهاء وضع التركيز' : document.fullscreenElement ? 'إنهاء ملء الشاشة' : 'ملء الشاشة');
+    $('#fullscreen').setAttribute('aria-pressed', String(focusMode || !!document.fullscreenElement));
+    render(current, false, false);
+  }
+  $('#fullscreen').onclick = async function () {
+    if (document.fullscreenElement) { await document.exitFullscreen(); return; }
+    if (focusMode) { focusMode = false; focusLayout(); return; }
+    if ($('#reader-app').requestFullscreen && document.fullscreenEnabled) {
+      try { await $('#reader-app').requestFullscreen(); return; } catch (_) {}
+    }
+    focusMode = true; closeOptions(); focusLayout();
+  };
+  document.addEventListener('fullscreenchange', focusLayout);
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape') { closeOptions(); if (focusMode) { focusMode = false; focusLayout(); } }
+    if (/INPUT|SELECT|TEXTAREA|BUTTON|A/.test(event.target.tagName) || event.altKey || event.ctrlKey || event.metaKey) return;
+    if (event.key === 'ArrowLeft') { event.preventDefault(); nextPage(); }
+    if (event.key === 'ArrowRight') { event.preventDefault(); previousPage(); }
+  });
+  var touch;
+  stage.addEventListener('touchstart', function (event) {
+    touch = event.touches.length === 1 && zoom === 1 ? { x: event.touches[0].clientX, y: event.touches[0].clientY } : null;
+  }, { passive: true });
+  stage.addEventListener('touchend', function (event) {
+    if (!touch || zoom !== 1) return;
+    var dx = event.changedTouches[0].clientX - touch.x, dy = event.changedTouches[0].clientY - touch.y;
+    touch = null; if (Math.abs(dx) > 60 && Math.abs(dy) < 55) { dx > 0 ? nextPage() : previousPage(); }
+  }, { passive: true });
+  window.addEventListener('resize', function () { clearTimeout(resizeTimer); resizeTimer = setTimeout(function () { render(current, false, false); }, 160); });
+  sync();
+  var initial = paperSize(1), cover = spread.querySelector('.paper');
+  cover.style.width = initial.width + 'px'; cover.style.height = initial.height + 'px';
+  render(current, false, false);
+})();
