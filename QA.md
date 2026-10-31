@@ -12,7 +12,13 @@
 
 ## Limits
 - Fullscreen control gracefully reports browser refusal in the cloud browser; actual fullscreen could not be verified there.
-- Download event completion was not surfaced by the cloud browser. PDF rendering confirms successful file loading in preview; live HTTP file response and byte size to be verified after publishing.
+- Download event completion was not surfaced by the cloud browser. PDF rendering confirms successful file loading in preview; published file subsequently verified by direct HTTP download: 200 application/pdf, 7,277,683 bytes; SHA-256 matches source. Browser download-event completion remains unverified.
 - Canvas pages are not a verified screen-reader transcript. The original PDF text extraction is malformed. This is disclosed in reader options and an assistive description. Original file preserved unchanged.
 - Turn animation is a shallow optional page rotation, not physical paper curl. Default PDF appearance is retained in both themes.
 - No performance benchmark or claim of exhaustive device/browser coverage. PDF loads on reader entry only; current pages render on demand.
+
+## Published verification
+- GitHub Pages deployment for commit 6d60c39f42ba2b5ca33e68d4b13e1eade8f66cca completed successfully.
+- Public homepage and reader opened in browser; PDF rendered successfully from permanent URL.
+- Downloaded public PDF SHA-256: 9aec4a8dab713419e059466ec8ccb6229ea73fb14d53ed133b655c1da232b582, identical to uploaded original.
+- Keyboard ArrowLeft in reader moved spread from pages4/5 to6/7.
