@@ -12,6 +12,11 @@ for (const book of context.window.WIRD_BOOKS) {
   for (let number=1;number<=book.pages;number++) {
     const file=path.join(book.pageImages.base,String(number).padStart(2,'0')+'.webp');
     const bytes=fs.readFileSync(file);
+    if(book.pageImages.screenBase){
+      const screen=fs.readFileSync(path.join(book.pageImages.screenBase,String(number).padStart(2,'0')+'.webp'));
+      assert.equal(screen.toString('ascii',8,12),'WEBP');
+      assert(screen.length < bytes.length,'Screen image must be smaller: '+file);
+    }
     assert.equal(bytes.toString('ascii',0,4),'RIFF',file);
     assert.equal(bytes.toString('ascii',8,12),'WEBP',file);
     assert(bytes.length > 1000,file+' is empty or truncated');
@@ -26,4 +31,4 @@ for(const file of fs.readdirSync('.').filter(f=>f.endsWith('.html'))) {
     assert(fs.statSync(resource).isFile(),file+' -> '+resource);
   }
 }
-console.log('Validated all 27 prepared pages, original PDF checksum, and HTML assets/navigation.');
+console.log('Validated 27 high-resolution and 27 lightweight reader pages, PDF checksum, and navigation/assets.');

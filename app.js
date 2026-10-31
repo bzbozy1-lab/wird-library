@@ -17,3 +17,49 @@ function populateCard(article,b){article.dataset.category=b.category;article.dat
 const results=document.querySelector('#book-results');
 if(results&&catalog.length){const template=results.querySelector('article');results.replaceChildren(...catalog.map(b=>{const node=template.cloneNode(true);populateCard(node,b);return node}));const category=document.querySelector('#category');function catalogFilter(){const q=normalize(search.value);let count=0;results.querySelectorAll('article').forEach(a=>{const show=(category.value==='all'||category.value===a.dataset.category)&&a.dataset.search.includes(q);a.hidden=!show;if(show)count++});results.hidden=count===0;document.querySelector('#empty').hidden=count>0;document.querySelector('#result-count').textContent=count===1?'كتاب واحد متاح للقراءة':count?`${count} كتب متاحة للقراءة`:'لا توجد نتائج'}search.addEventListener('input',catalogFilter);category.addEventListener('change',catalogFilter);document.querySelector('#reset-search').addEventListener('click',()=>{search.value='';category.value='all';catalogFilter();search.focus()});catalogFilter()}
 if(document.body.classList.contains('page-book')){if(!currentBook){document.querySelector('.detail-layout').textContent='لم نجد هذا الكتاب. عُد إلى المكتبة لاختيار كتاب متاح.'}else{const b=currentBook;document.title=b.title+' | وِرد';document.querySelector('.detail-copy h1').textContent=b.title;document.querySelector('.detail-copy .author strong').textContent=b.author;document.querySelector('.description').textContent=b.description;document.querySelector('.category-label').textContent=(b.category==='personal'?'كتابات شخصية':'كتب قديمة')+' · '+b.subject;const image=document.querySelector('.detail-cover img');image.src=b.cover;image.alt='الغلاف الأصلي لكتاب '+b.title;const values=[b.pages+' صفحة',b.language,'PDF · '+b.size];document.querySelectorAll('.book-facts dd').forEach((el,i)=>el.textContent=values[i]);document.querySelector('.actions .primary').href=bookURL('reader',b);const dl=document.querySelector('[download]');dl.href=b.file;dl.download=b.title+'.pdf';document.querySelector('.book-note p').textContent=b.permission+' نعرض صفحاته وغلافه كما وردت في الملف الأصلي، دون تغيير في النصوص.';const saved=Number(storage.get('wird-progress-'+b.id));progress.textContent=saved>1&&saved<=b.pages?`وصلت سابقًا إلى الصفحة ${saved}. سيستأنف القارئ من موضعك.`:''}}
+
+// Warm only local HTML and likely reading pages; never prefetch PDF downloads.
+(function () {
+  const connection=navigator.connection;
+  if(connection&&(connection.saveData||/2g/.test(connection.effectiveType||'')))return;
+  const prepared=new Set();
+  const siteRoot=new URL('.',location.href).pathname;
+  function prefetch(href,kind){
+    const url=new URL(href,location.href);url.hash='';
+    if(url.origin!==location.origin||!url.pathname.startsWith(siteRoot))return;
+    if(kind==='document'&&!url.pathname.endsWith('.html'))return;
+    if(url.href===location.href||prepared.has(url.href))return;
+    prepared.add(url.href);
+    const hint=document.createElement('link');hint.rel='prefetch';if(kind==='image')hint.as='image';hint.href=url.href;
+    document.head.append(hint);
+  }
+  function readerImages(url){
+    if(!url.pathname.endsWith('/reader.html'))return;
+    const id=url.searchParams.get('id');const b=catalog.find(item=>item.id===id)||(!id?catalog[0]:null);
+    if(!b?.pageImages)return;
+    const first=Math.max(1,Math.min(b.pages,Number(storage.get('wird-progress-'+b.id))||1));
+    const base=b.pageImages.screenBase||b.pageImages.base;
+    prefetch(base+String(first).padStart(2,'0')+'.webp','image');
+    if(first>1&&first<b.pages&&innerWidth>=1100&&storage.get('wird-spread')!=='single')
+      prefetch(base+String(first+1).padStart(2,'0')+'.webp','image');
+  }
+  function intent(event){
+    const anchor=event.target.closest?.('a[href]');if(!anchor||anchor.hasAttribute('download'))return;
+    const url=new URL(anchor.href,location.href);
+    if(url.origin!==location.origin)return;
+    prefetch(url.href,'document');readerImages(url);
+  }
+  document.addEventListener('pointerover',intent,{passive:true});
+  document.addEventListener('focusin',intent);
+  document.addEventListener('touchstart',intent,{passive:true});
+  function warm(){
+    if(document.visibilityState==='hidden'||document.body.classList.contains('page-reader'))return;
+    if(document.body.classList.contains('page-home')){
+      prefetch('library.html','document');prefetch('book.html','document');
+    }else{
+      const links=[...document.querySelectorAll('main a[href]')].filter(a=>!a.hasAttribute('download'));
+      links.slice(0,2).forEach(a=>{prefetch(a.href,'document');readerImages(new URL(a.href,location.href))});
+    }
+  }
+  if('requestIdleCallback' in window)window.requestIdleCallback(warm,{timeout:1200});else setTimeout(warm,600);
+})();

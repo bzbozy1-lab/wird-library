@@ -21,3 +21,6 @@ Reader tests run the actual script against a controlled DOM/Image environment: i
 
 ## Limits
 Not a physical-device or exhaustive browser audit. No measured speed benchmark; reduced initial dependency/payload is established by implementation. Original PDF is not a reliable screen-reader transcript; limitation disclosed in reader. Prepared page images retain visual text without rewriting, while the downloadable source remains original. Original PDF public HTTP download/checksum verified in prior release; live recheck follows deployment of this update.
+
+## Performance update
+Supersedes the earlier single-resolution image pipeline and620/560ms animation timings. See PERFORMANCE.md for current asset budgets, two-tier rendering, complete-spread prefetch and measured local commit timings. All54 detailed/screen assets validated; original PDF checksum unchanged. Browser image widths confirm progressive detail upgrade.

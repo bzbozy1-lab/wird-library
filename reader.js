@@ -27,7 +27,7 @@
   if (['auto', 'single', 'double'].indexOf(mode) < 0) mode = 'auto';
   var reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
   var motion = storage.get('wird-motion') !== 'off';
-  var cache = new Map(), activeLeaf = null, leafTimer, resizeTimer, focusMode = false;
+  var cache = new Map(), readyPages = new Set(), activeLeaf = null, leafTimer, resizeTimer, focusMode = false;
   document.title = 'قراءة ' + book.title + ' | وِرد';
   $('#reader-app h1').textContent = book.title;
   $('.reader-header p').textContent = book.author;
@@ -54,32 +54,39 @@
     $('#zoom-out').disabled = zoom <= .75;
     $('#zoom-in').disabled = zoom >= 2.5;
   }
-  function pageURL(n) {
-    return book.pageImages.base + String(n).padStart(2, '0') + '.' + (book.pageImages.extension || 'webp');
+  function pageURL(n, detail) {
+    return (!detail && book.pageImages.screenBase ? book.pageImages.screenBase : book.pageImages.base) + String(n).padStart(2, '0') + '.' + (book.pageImages.extension || 'webp');
   }
-  function loadPage(n, retry) {
-    if (retry) cache.delete(n);
-    if (cache.has(n)) return cache.get(n);
+  function loadPage(n, retry, detail, background) {
+    var cacheKey = (detail ? 'detail:' : 'screen:') + n;
+    if (retry) { cache.delete(cacheKey); readyPages.delete(cacheKey); }
+    if (cache.has(cacheKey)) {
+      var hit = cache.get(cacheKey); cache.delete(cacheKey); cache.set(cacheKey, hit); return hit;
+    }
     var promise = new Promise(function (resolve, reject) {
       var image = new Image(), finished = false;
       var timer = setTimeout(function () { finish(new Error('page-timeout')); }, 12000);
       function finish(err) {
         if (finished) return;
         finished = true; clearTimeout(timer); image.onload = null; image.onerror = null;
-        if (err) { cache.delete(n); reject(err); } else resolve(image);
+        if (err) {
+          if (cache.get(cacheKey) === promise) { cache.delete(cacheKey); readyPages.delete(cacheKey); }
+          reject(err);
+        } else { if (cache.get(cacheKey) === promise) readyPages.add(cacheKey); resolve(image); }
       }
       image.decoding = 'sync';
+      image.fetchPriority = background ? 'low' : 'high';
       image.onload = function () {
         if (!image.naturalWidth) { finish(new Error('empty-page')); return; }
         if (image.decode) image.decode().then(function () { finish(); }, function () { finish(); });
         else finish();
       };
       image.onerror = function () { finish(new Error('page-unavailable')); };
-      image.src = pageURL(n) + (retry ? '?retry=' + Date.now() : '');
+      image.src = pageURL(n, detail) + (retry ? '?retry=' + Date.now() : '');
     });
-    cache.set(n, promise);
+    cache.set(cacheKey, promise);
     // Keep a bounded working set; browser HTTP caching handles older pages.
-    if (cache.size > 8) cache.delete(cache.keys().next().value);
+    if (cache.size > 8) { var oldest = cache.keys().next().value; cache.delete(oldest); readyPages.delete(oldest); }
     return promise;
   }
   function paperSize(count) {
@@ -116,14 +123,15 @@
       spread.dataset.completedTurns = String(Number(spread.dataset.completedTurns || 0) + 1);
       stopTurn();
     });
-    leafTimer = setTimeout(stopTurn, 800);
+    leafTimer = setTimeout(stopTurn, 520);
   }
   async function render(number, animate, retry) {
     var next = clamp(number), ticket = ++generation, list = visiblePages(next);
+    var started = Date.now(), warmed = list.every(function (n) { return readyPages.has('screen:' + n); });
     stage.setAttribute('aria-busy', 'true'); error.hidden = true;
-    say('جارٍ تحميل الصفحة ' + next + '…');
+    if (!warmed) say('جارٍ تحميل الصفحة ' + next + '…');
     try {
-      var images = await Promise.all(list.map(function (n) { return loadPage(n, retry); }));
+      var images = await Promise.all(list.map(function (n) { return loadPage(n, retry, false, false); }));
       if (ticket !== generation) return;
       var oldPapers = spread.querySelectorAll('.paper');
       var direction = next - current;
@@ -142,9 +150,27 @@
       stage.scrollTop = 0; stage.scrollLeft = 0;
       if (animate && direction && oldPaper && oldPapers.length === nodes.length) turnLeaf(oldPaper, oldBox, nodes, direction);
       current = next; wanted = next; sync(); storage.set(key, current);
+      spread.dataset.renderMs = String(Date.now() - started);
+      spread.dataset.cacheHit = String(warmed);
+      lastLayout = stage.clientWidth + ':' + stage.clientHeight;
       stage.setAttribute('aria-busy', 'false');
       say(list.length === 2 ? 'الصفحتان ' + current + ' و' + (current + 1) + ' · يُحفظ موضعك تلقائيًا' : 'الصفحة ' + current + ' من ' + total + ' · يُحفظ موضعك تلقائيًا');
-      [list[list.length - 1] + 1, current - 1].forEach(function (n) { if (n >= 1 && n <= total) loadPage(n).catch(function () {}); });
+      // A desktop turn needs TWO new pages; warm the complete next spread.
+      var connection = window.navigator && window.navigator.connection;
+      if (!connection || (!connection.saveData && !/2g/.test(connection.effectiveType || ''))) {
+        var ahead = list[list.length - 1] + 1;
+        var neighbors = [ahead, current - 1];
+        if (doubleMode()) neighbors.push(ahead + 1, current - 2);
+        neighbors.forEach(function (n) { if (n >= 1 && n <= total) loadPage(n, false, false, true).catch(function () {}); });
+      }
+      // Show the light page immediately; sharpen in place only when zoomed.
+      if (zoom > 1 && book.pageImages.screenBase) list.forEach(function (n, i) {
+        loadPage(n, false, true, false).then(function (detail) {
+          if (ticket !== generation || zoom <= 1) return;
+          detail.alt = 'الصفحة ' + n + ' من ' + total + '، ' + book.title;
+          detail.draggable = false; nodes[i].replaceChildren(detail);
+        }).catch(function () { /* The readable screen image remains visible. */ });
+      });
     } catch (err) {
       if (ticket !== generation) return;
       stage.setAttribute('aria-busy', 'false');
@@ -203,7 +229,13 @@
     var dx = event.changedTouches[0].clientX - touch.x, dy = event.changedTouches[0].clientY - touch.y;
     touch = null; if (Math.abs(dx) > 60 && Math.abs(dy) < 55) { dx > 0 ? nextPage() : previousPage(); }
   }, { passive: true });
-  window.addEventListener('resize', function () { clearTimeout(resizeTimer); resizeTimer = setTimeout(function () { render(current, false, false); }, 160); });
+  var lastLayout = '';
+  window.addEventListener('resize', function () {
+    clearTimeout(resizeTimer); resizeTimer = setTimeout(function () {
+      var layout = stage.clientWidth + ':' + stage.clientHeight;
+      if (layout !== lastLayout) render(current, false, false);
+    }, 120);
+  });
   sync();
   var initial = paperSize(1), cover = spread.querySelector('.paper');
   cover.style.width = initial.width + 'px'; cover.style.height = initial.height + 'px';
