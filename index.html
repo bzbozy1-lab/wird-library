@@ -2,38 +2,40 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="وِرد، مكتبة شخصية للكتابات والكتب القديمة المتاحة مجانًا للقراءة والتحميل.">
-<meta name="theme-color" content="#f7f5ef">
-<title>وِرد | مكتبة للقراءة</title>
+<meta name="description" content="وِرد، مكتبة للكتابات الشخصية والكتب القديمة المتاحة للقراءة والتحميل مجانًا.">
+<meta name="theme-color" content="#f8f6f0">
+<title>وِرد — مساحة للكتب والكلمات</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 <script src="app.js" defer></script>
 </head>
 <body>
 <a class="skip" href="#main">تجاوز إلى المحتوى</a>
 <header class="site-header"><div class="shell header-inner">
-<a href="#home" class="brand" aria-label="وِرد - الرئيسية"><span class="brand-icon" aria-hidden="true">۞</span><strong>وِرد</strong></a>
-<nav aria-label="القائمة الرئيسية"><a href="#library">المكتبة</a><a href="#about">عن وِرد</a></nav>
-<button class="theme-btn" type="button" id="themeToggle" aria-label="تغيير المظهر" title="تغيير المظهر">☾</button>
+<a href="#home" class="brand" aria-label="وِرد، العودة للرئيسية"><span class="brand-glyph" aria-hidden="true">و</span><span class="brand-word">وِرد<span class="brand-dot">.</span></span></a>
+<nav aria-label="التنقل الرئيسي"><a href="#library">الكتب</a><a href="#about">عن المكتبة</a></nav>
+<button class="theme-btn" type="button" id="themeToggle" aria-label="تغيير المظهر"><span aria-hidden="true">◐</span></button>
 </div></header>
 <main id="main">
 <section class="hero shell" id="home">
-<div class="hero-mark" aria-hidden="true">✳</div>
-<p class="eyebrow">مساحة هادئة للكلمة</p>
-<h1>كل كتاب،<br><em>نافذة تبقى.</em></h1>
-<p class="hero-description">كتابات شخصية وكتب قديمة متاحة للقراءة الحرة. مكتبة صغيرة تحترم النص وتترك للقراءة مساحتها.</p>
-<a class="primary-btn" href="#library">تصفح المكتبة <span aria-hidden="true">←</span></a>
+<div class="hero-copy"><p class="eyebrow"><span class="eyebrow-line"></span> مَكْتَبَةٌ لِلْقِرَاءَةِ الْحُرَّة</p>
+<h1>للكلماتِ<br><i>مكانٌ</i> هنا.</h1>
+<p class="hero-description">كتابات شخصية، وكتب من زمنٍ مضى. نجمعها في مكانٍ بسيط لتبقى أقرب إلى القارئ، وتصل إليه دون حواجز.</p>
+<a class="primary-btn" href="#library">اكتشف الكتب <span aria-hidden="true">↙</span></a>
+<div class="hero-foot"><span class="tiny-star" aria-hidden="true">✳</span><span>اقرأ بهدوء. احتفظ بما تحب.</span></div>
+</div>
+<div class="hero-art" aria-hidden="true"><div class="art-orbit orbit-a"></div><div class="art-orbit orbit-b"></div><div class="art-label">كلمةٌ تُقرأ<br>وأثرٌ يبقى</div><div class="art-book book-one"><span class="art-spine"></span><span class="art-book-letter">و</span><span class="art-book-small">مكتبة وِرد</span></div><div class="art-book book-two"><span class="art-book-letter">ر</span></div><div class="art-book book-three"><span class="art-book-letter">د</span></div><span class="art-flower">✳</span></div>
 </section>
+<div class="running-strip" aria-hidden="true"><div class="shell"><span>قراءة حُرّة</span><span>✳</span><span>كتابات شخصية</span><span>✳</span><span>كتب تستحق البقاء</span><span>✳</span><span>دون تسجيل أو اشتراك</span></div></div>
 <section class="library-section" id="library"><div class="shell">
-<div class="section-header"><div><p class="eyebrow">الرفوف</p><h2>المكتبة</h2><p class="section-description">اختر ما يلفت نظرك، ثم اقرأ مباشرة أو حمّل الكتاب.</p></div><span class="book-total" id="bookCount">0 كتاب</span></div>
-<div class="controls"><label class="search-wrap"><span aria-hidden="true">⌕</span><span class="sr-only">البحث في المكتبة</span><input id="searchInput" type="search" placeholder="ابحث عن كتاب أو مؤلف…" autocomplete="off"></label>
-<div class="filters" role="group" aria-label="تصنيف الكتب"><button data-filter="all" class="filter active" aria-pressed="true">الكل</button><button data-filter="personal" class="filter" aria-pressed="false">كتاباتي</button><button data-filter="heritage" class="filter" aria-pressed="false">كتب قديمة</button></div></div>
-<div class="book-grid" id="bookGrid" aria-live="polite"></div>
-<p class="empty-state" id="emptyState" hidden>لا توجد كتب تطابق البحث حاليًا.</p>
+<div class="section-header"><div><p class="eyebrow"><span class="eyebrow-line"></span> بين الرفوف</p><h2>اختر <em>قراءتك.</em></h2><p class="section-description">ليس عليك سوى اختيار كتاب. الباقي تركناه بسيطًا.</p></div><span class="book-total" id="bookCount">0 كتاب</span></div>
+<div class="controls"><div class="filters" role="group" aria-label="تصنيف الكتب"><button data-filter="all" class="filter active" aria-pressed="true">جميع الكتب</button><button data-filter="personal" class="filter" aria-pressed="false">كتابات شخصية</button><button data-filter="heritage" class="filter" aria-pressed="false">كتب قديمة</button></div>
+<label class="search-wrap"><span aria-hidden="true">⌕</span><span class="sr-only">البحث في المكتبة</span><input id="searchInput" type="search" placeholder="ابحث بعنوان أو مؤلف…" autocomplete="off"></label></div>
+<div class="book-grid" id="bookGrid" aria-live="polite"></div><p class="empty-state" id="emptyState" hidden>لا توجد كتب تطابق بحثك.</p>
 </div></section>
-<section class="about-section shell" id="about"><span class="separator" aria-hidden="true">✳</span><p class="eyebrow">عن المكتبة</p><h2>قليل من الصفحات،<br>كثير من المعنى.</h2><p>وِرد مكتبة شخصية مفتوحة، تنشر الكتابات الأصلية والكتب القديمة التي تسمح حقوقها بإعادة النشر. القراءة والتحميل مجانيان دائمًا، ولا حاجة إلى إنشاء حساب.</p><p class="small-note">تُنسب الأعمال إلى أصحابها، ويُذكر مصدر كل كتاب وترخيصه عند إتاحته.</p></section>
+<section class="manifesto" id="about"><div class="shell manifesto-grid"><div class="manifesto-icon" aria-hidden="true"><span>و</span><span>ر</span><span>د</span></div><div class="manifesto-copy"><p class="eyebrow"><span class="eyebrow-line"></span> حكاية وِرد</p><h2>بعض الكتب<br>لا تُغلق <em>حقًّا.</em></h2><p>«وِرد» مساحة مستقلة لجمع الكتابات الأصلية والكتب القديمة المسموح بإعادة نشرها. لا ازدحام في الواجهة، ولا اشتراك يقطع طريقك إلى صفحة.</p><p class="manifesto-note">نحفظ اسم الكاتب، ونذكر المصدر، ونترك للكتاب أن يتحدث عن نفسه.</p></div></div></section>
 </main>
-<footer class="footer"><div class="shell footer-inner"><span>وِرد © <span id="year"></span></span><span>صُممت للقراءة، لا للتشتيت.</span></div></footer>
-<dialog class="reader-dialog" id="readerDialog" aria-labelledby="readerTitle"><div class="reader-layout"><header class="reader-header"><div><p class="reader-label">قراءة الكتاب</p><h2 id="readerTitle">عنوان الكتاب</h2></div><div class="reader-actions"><a id="readerDownload" class="download-link" href="#" download>تحميل PDF ↓</a><button id="readerClose" class="close-btn" type="button" aria-label="إغلاق القارئ">×</button></div></header><div class="reader-body"><iframe id="readerFrame" title="عارض كتاب PDF" loading="lazy"></iframe><div class="reader-fallback">إذا تعذر عرض الكتاب في متصفحك، <a id="readerOpen" target="_blank" rel="noopener noreferrer">افتح ملف PDF في نافذة مستقلة</a>.</div></div></div></dialog>
+<footer class="footer"><div class="shell footer-inner"><a href="#home" class="footer-brand">وِرد<span>.</span></a><span>مكتبة تُفتح للجميع.</span><span>© <span id="year"></span></span></div></footer>
+<dialog class="reader-dialog" id="readerDialog" aria-labelledby="readerTitle"><div class="reader-layout"><header class="reader-header"><div><p class="reader-label">أنت تقرأ الآن</p><h2 id="readerTitle">عنوان الكتاب</h2></div><div class="reader-actions"><a id="readerDownload" class="download-link" href="#" download>تحميل الكتاب ↓</a><button id="readerClose" class="close-btn" type="button" aria-label="إغلاق القراءة">×</button></div></header><div class="reader-body"><iframe id="readerFrame" title="عارض كتاب PDF"></iframe><div class="reader-fallback">لا يظهر الكتاب؟ <a id="readerOpen" target="_blank" rel="noopener noreferrer">افتحه مباشرة في المتصفح</a>.</div></div></div></dialog>
 </body></html>
